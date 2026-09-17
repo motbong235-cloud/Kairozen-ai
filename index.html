@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kairozen AI — គម្រោងធំ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:#060a12; --panel:#0c1220; --card:#121a2b; --border:rgba(255,255,255,.08);
+      --text:#eef2ff; --muted:#8b9bb4; --cyan:#22d3ee; --violet:#7c5cff;
+      --grad:linear-gradient(135deg,#22d3ee,#7c5cff);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+    .app{display:grid;grid-template-columns:280px 1fr 260px;height:100vh}
+    @media(max-width:960px){.app{grid-template-columns:1fr}.sidebar,.files{display:none}.sidebar.open,.files.open{display:flex;position:fixed;inset:0;z-index:30}}
+    .sidebar,.files{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column}
+    .files{border-right:none;border-left:1px solid var(--border)}
+    .side-head{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+    .logo-mark{width:32px;height:32px;border-radius:10px;background:var(--grad);display:grid;place-items:center;font-weight:800;font-size:.85rem}
+    .side-head strong{font-size:.95rem}
+    .side-head span{display:block;font-size:.72rem;color:var(--muted)}
+    .side-actions{padding:12px;display:flex;flex-direction:column;gap:8px}
+    .btn{border:none;border-radius:12px;padding:10px 14px;font-weight:600;font-size:.88rem;cursor:pointer;font-family:inherit}
+    .btn-primary{background:var(--grad);color:#fff}
+    .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .proj-list{flex:1;overflow:auto;padding:8px}
+    .proj{padding:12px;border-radius:12px;cursor:pointer;border:1px solid transparent;margin-bottom:6px}
+    .proj:hover{background:rgba(255,255,255,.03)}
+    .proj.active{background:rgba(124,92,255,.12);border-color:rgba(124,92,255,.35)}
+    .proj b{display:block;font-size:.9rem;margin-bottom:2px}
+    .proj small{color:var(--muted);font-size:.75rem}
+    .main{display:flex;flex-direction:column;min-width:0}
+    .top{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .top h1{font-size:1rem;font-weight:700;flex:1}
+    .modes{display:flex;gap:6px;flex-wrap:wrap}
+    .mode{padding:6px 12px;border-radius:999px;font-size:.78rem;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer}
+    .mode.on{color:#fff;border-color:transparent;background:var(--grad)}
+    #messages{flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+    .bubble{max-width:90%;padding:12px 14px;border-radius:14px;font-size:.92rem;white-space:pre-wrap;word-break:break-word;line-height:1.55}
+    .user{align-self:flex-end;background:linear-gradient(135deg,#7c5cff,#6366f1);border-bottom-right-radius:4px}
+    .ai{align-self:flex-start;background:var(--card);border:1px solid var(--border);border-bottom-left-radius:4px}
+    .sys{align-self:center;color:var(--muted);font-size:.8rem;background:transparent;border:none}
+    .err{align-self:center;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#fecaca;font-size:.85rem}
+    .composer{padding:12px;border-top:1px solid var(--border);display:flex;gap:10px;background:var(--panel)}
+    #input{flex:1;min-height:52px;max-height:140px;resize:vertical;border-radius:14px;border:1px solid var(--border);background:var(--card);color:var(--text);padding:12px;font-family:inherit;font-size:.92rem;outline:none}
+    #input:focus{border-color:rgba(124,92,255,.5)}
+    .file-item{padding:10px 12px;border-radius:10px;cursor:pointer;font-size:.82rem;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+    .file-item:hover{background:rgba(255,255,255,.04);color:var(--text)}
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+    .modal-bg.show{display:flex}
+    .modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;width:min(420px,100%)}
+    .modal h3{margin-bottom:12px}
+    .modal input,.modal textarea{width:100%;margin-bottom:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit}
+    .modal textarea{min-height:80px;resize:vertical}
+    .status{font-size:.75rem;color:var(--muted);padding:0 16px 8px}
+    .status ok{color:#34d399}
+    pre.fileview{white-space:pre-wrap;font-size:.8rem;background:#070b14;padding:12px;border-radius:10px;max-height:50vh;overflow:auto;border:1px solid var(--border)}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="side-head">
+      <div class="logo-mark">K</div>
+      <div><strong>Kairozen AI</strong><span>គម្រោងធំ · Grok</span></div>
+    </div>
+    <div class="side-actions">
+      <button class="btn btn-primary" id="newProjBtn">+ គម្រោងថ្មី</button>
+      <button class="btn btn-ghost" id="tplBtn">📋 Template</button>
+      <button class="btn btn-ghost" id="secBtn">🔒 Security</button>
+      <button class="btn btn-ghost" id="refreshBtn">Refresh</button>
+    </div>
+    <div class="proj-list" id="projList"></div>
+    <div class="status" id="healthStatus">កំពុងពិនិត្យ API…</div>
+  </aside>
+
+  <main class="main">
+    <div class="top">
+      <h1 id="projTitle">ជ្រើស ឬ បង្កើតគម្រោង</h1>
+      <div class="modes">
+        <button class="mode on" data-mode="build">កសាង</button>
+        <button class="mode" data-mode="plan">ផែនការ</button>
+        <button class="mode" data-mode="code">Code</button>
+        <button class="mode" data-mode="review">ពិនិត្យ</button>
+      </div>
+      <button class="btn btn-ghost" id="delBtn" style="display:none">លុប</button>
+    </div>
+    <div id="messages">
+      <div class="bubble sys">បង្កើតគម្រោងថ្មី រួចពិពណ៌នាអ្វីដែលចង់បាន — website, bot, API, ឯកសារ…</div>
+    </div>
+    <div class="composer">
+      <textarea id="input" placeholder="ពិពណ៌នាគម្រោង / សំណើបន្ទាប់… (Enter ផ្ញើ, Shift+Enter ដូរបន្ទាត់)"></textarea>
+      <button class="btn btn-primary" id="sendBtn">ផ្ញើ</button>
+    </div>
+  </main>
+
+  <aside class="files" id="filesPane">
+    <div class="side-head"><strong>Files</strong></div>
+    <div class="proj-list" id="fileList"><div class="bubble sys">មិនទាន់មាន file</div></div>
+  </aside>
+</div>
+
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h3>គម្រោងថ្មី</h3>
+    <input id="mTitle" placeholder="ឈ្មោះគម្រោង (ឧ. Website ហាង)" />
+    <textarea id="mDesc" placeholder="ពិពណ៌នាខ្លី — គោលបំណង, tech stack…"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" id="mCancel">បោះបង់</button>
+      <button class="btn btn-primary" id="mCreate">បង្កើត</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="fileModal">
+  <div class="modal" style="width:min(640px,100%)">
+    <h3 id="fileModalTitle">File</h3>
+    <pre class="fileview" id="fileContent"></pre>
+    <div style="text-align:right;margin-top:10px">
+      <button class="btn btn-ghost" id="fileClose">បិទ</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-bg" id="tplModal">
+  <div class="modal" style="width:min(480px,100%)">
+    <h3>ជ្រើស Template</h3>
+    <p style="color:var(--muted);font-size:.85rem;margin-bottom:12px">គម្រោងស្របច្បាប់តែប៉ុណ្ណោះ</p>
+    <div id="tplList" style="display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow:auto"></div>
+    <div style="text-align:right;margin-top:12px">
+      <button class="btn btn-ghost" id="tplClose">បិទ</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="secModal">
+  <div class="modal" style="width:min(520px,100%)">
+    <h3>🔒 គោលការណ៍ Security</h3>
+    <div style="font-size:.88rem;line-height:1.6;color:var(--muted);max-height:55vh;overflow:auto">
+      <p style="margin-bottom:10px;color:var(--text)"><b>Kairozen AI ផ្តោតលើការពារ — មិនមែនការវាយប្រហារ</b></p>
+      <ul style="padding-left:18px;margin-bottom:12px">
+        <li><b>HTTPS</b> — ប្រើ SSL លើ production</li>
+        <li><b>Env secrets</b> — API key / token មិន hardcode ក្នុង code</li>
+        <li><b>Password</b> — hash (bcrypt/argon2) មិនរក្សាទុក plain text</li>
+        <li><b>Input validation</b> — ពិនិត្យទិន្នន័យពី user មុនប្រើ</li>
+        <li><b>Rate limit</b> — កំណត់ចំនួន request ការពារ abuse</li>
+        <li><b>Least privilege</b> — admin តែអ្នកដែលត្រូវការ</li>
+        <li><b>Backup</b> — Disk / backup data សំខាន់</li>
+        <li><b>Monitor</b> — health check + log ប្រព័ន្ធ<strong>របស់អ្នក</strong></li>
+      </ul>
+      <p style="color:#fca5a5;margin-bottom:8px"><b>មិនធ្វើ៖</b> hacking tools, exploit, phishing, scan ប្រព័ន្ធគេដោយគ្មានសិទ្ធិ</p>
+      <p>ចង់ឲ្យ AI ពន្យល់លម្អិត → បង្កើតគម្រោងពី template <b>Security គោលការណ៍</b></p>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn btn-primary" id="secStart">បើក template Security</button>
+      <button class="btn btn-ghost" id="secClose">បិទ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentId = null;
+let mode = "build";
+const messagesEl = document.getElementById("messages");
+const projList = document.getElementById("projList");
+const fileList = document.getElementById("fileList");
+const input = document.getElementById("input");
+const sendBtn = document.getElementById("sendBtn");
+
+document.querySelectorAll(".mode").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll(".mode").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    mode = b.dataset.mode;
+  };
+});
+
+function bubble(text, cls) {
+  const d = document.createElement("div");
+  d.className = "bubble " + cls;
+  d.textContent = text;
+  messagesEl.appendChild(d);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return d;
+}
+
+async function health() {
+  try {
+    const r = await fetch("/health");
+    const j = await r.json();
+    const el = document.getElementById("healthStatus");
+    el.textContent = j.grok_configured
+      ? `Grok រួច · ${j.model} · ${j.projects} គម្រោង`
+      : "មិនទាន់មាន GROK_API_KEY";
+  } catch {
+    document.getElementById("healthStatus").textContent = "មិនភ្ជាប់ server";
+  }
+}
+
+async function loadProjects() {
+  const r = await fetch("/api/projects");
+  const j = await r.json();
+  projList.innerHTML = "";
+  if (!j.projects?.length) {
+    projList.innerHTML = '<div class="bubble sys">មិនទាន់មានគម្រោង</div>';
+    return;
+  }
+  j.projects.forEach(p => {
+    const d = document.createElement("div");
+    d.className = "proj" + (p.id === currentId ? " active" : "");
+    d.innerHTML = `<b>${escapeHtml(p.title)}</b><small>${p.message_count || 0} សារ · ${p.file_count || 0} files</small>`;
+    d.onclick = () => openProject(p.id);
+    projList.appendChild(d);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function openProject(id) {
+  const r = await fetch("/api/projects/" + id);
+  if (!r.ok) return alert("រកមិនឃើញគម្រោង");
+  const { project: p } = await r.json();
+  currentId = p.id;
+  document.getElementById("projTitle").textContent = p.title;
+  document.getElementById("delBtn").style.display = "inline-flex";
+  messagesEl.innerHTML = "";
+  if (p.description) bubble("គោលបំណង: " + p.description, "sys");
+  (p.messages || []).forEach(m => bubble(m.content, m.role === "user" ? "user" : "ai"));
+  if (!(p.messages || []).length) bubble("ពិពណ៌នាអ្វីដែលចង់កសាងក្នុងគម្រោងនេះ…", "sys");
+  renderFiles(Object.keys(p.files || {}));
+  loadProjects();
+}
+
+function renderFiles(paths) {
+  fileList.innerHTML = "";
+  if (!paths.length) {
+    fileList.innerHTML = '<div class="bubble sys">មិនទាន់មាន file</div>';
+    return;
+  }
+  paths.sort().forEach(path => {
+    const d = document.createElement("div");
+    d.className = "file-item";
+    d.innerHTML = `<span>${escapeHtml(path)}</span>`;
+    d.onclick = async () => {
+      const r = await fetch(`/api/projects/${currentId}/files/${encodeURIComponent(path)}`);
+      const j = await r.json();
+      document.getElementById("fileModalTitle").textContent = path;
+      document.getElementById("fileContent").textContent = j.content || "";
+      document.getElementById("fileModal").classList.add("show");
+    };
+    fileList.appendChild(d);
+  });
+}
+
+async function send() {
+  if (!currentId) {
+    document.getElementById("modal").classList.add("show");
+    return;
+  }
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  bubble(text, "user");
+  sendBtn.disabled = true;
+  const thinking = bubble("កំពុងគិត / កសាង…", "ai");
+  try {
+    const r = await fetch(`/api/projects/${currentId}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, mode }),
+    });
+    const j = await r.json();
+    thinking.remove();
+    if (!r.ok) {
+      bubble(j.error || "បញ្ហា", "err");
+    } else {
+      bubble(j.reply || "", "ai");
+      if (j.files_updated?.length) {
+        bubble("📁 Updated: " + j.files_updated.join(", "), "sys");
+        const fr = await fetch(`/api/projects/${currentId}`);
+        const fp = await fr.json();
+        renderFiles(Object.keys(fp.project.files || {}));
+      }
+      loadProjects();
+    }
+  } catch (e) {
+    thinking.remove();
+    bubble("មិនភ្ជាប់ server", "err");
+  }
+  sendBtn.disabled = false;
+}
+
+document.getElementById("sendBtn").onclick = send;
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+
+document.getElementById("newProjBtn").onclick = () => document.getElementById("modal").classList.add("show");
+document.getElementById("mCancel").onclick = () => document.getElementById("modal").classList.remove("show");
+document.getElementById("fileClose").onclick = () => document.getElementById("fileModal").classList.remove("show");
+document.getElementById("refreshBtn").onclick = () => { loadProjects(); health(); };
+
+document.getElementById("mCreate").onclick = async () => {
+  const title = document.getElementById("mTitle").value.trim() || "គម្រោងថ្មី";
+  const description = document.getElementById("mDesc").value.trim();
+  const r = await fetch("/api/projects", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, description }),
+  });
+  const j = await r.json();
+  document.getElementById("modal").classList.remove("show");
+  document.getElementById("mTitle").value = "";
+  document.getElementById("mDesc").value = "";
+  await loadProjects();
+  openProject(j.project.id);
+};
+
+document.getElementById("delBtn").onclick = async () => {
+  if (!currentId || !confirm("លុបគម្រោងនេះ?")) return;
+  await fetch("/api/projects/" + currentId, { method: "DELETE" });
+  currentId = null;
+  document.getElementById("projTitle").textContent = "ជ្រើស ឬ បង្កើតគម្រោង";
+  document.getElementById("delBtn").style.display = "none";
+  messagesEl.innerHTML = '<div class="bubble sys">បង្កើតគម្រោងថ្មីដើម្បីចាប់ផ្តើម</div>';
+  renderFiles([]);
+  loadProjects();
+};
+
+
+document.getElementById("tplBtn").onclick = async () => {
+  const r = await fetch("/api/templates");
+  const j = await r.json();
+  const box = document.getElementById("tplList");
+  box.innerHTML = "";
+  (j.templates || []).forEach(t => {
+    const b = document.createElement("button");
+    b.className = "btn btn-ghost";
+    b.style.textAlign = "left";
+    b.innerHTML = `<b>${escapeHtml(t.title)}</b><br><small style="color:var(--muted)">${escapeHtml(t.description)}</small>`;
+    b.onclick = async () => {
+      const cr = await fetch("/api/projects/from-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template: t.id }),
+      });
+      const cj = await cr.json();
+      if (!cr.ok) { alert(cj.error || "បញ្ហា"); return; }
+      document.getElementById("tplModal").classList.remove("show");
+      await loadProjects();
+      await openProject(cj.project.id);
+      if (cj.starter) {
+        input.value = cj.starter;
+        input.focus();
+      }
+    };
+    box.appendChild(b);
+  });
+  document.getElementById("tplModal").classList.add("show");
+};
+document.getElementById("tplClose").onclick = () => document.getElementById("tplModal").classList.remove("show");
+document.getElementById("secBtn").onclick = () => document.getElementById("secModal").classList.add("show");
+document.getElementById("secClose").onclick = () => document.getElementById("secModal").classList.remove("show");
+document.getElementById("secStart").onclick = async () => {
+  document.getElementById("secModal").classList.remove("show");
+  const cr = await fetch("/api/projects/from-template", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ template: "security" }),
+  });
+  const cj = await cr.json();
+  if (cr.ok) {
+    await loadProjects();
+    await openProject(cj.project.id);
+    if (cj.starter) { input.value = cj.starter; input.focus(); }
+  }
+};
+
+
+health();
+loadProjects();
+</script>
+</body>
+</html>
